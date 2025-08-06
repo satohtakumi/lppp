@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:lpcats.com)",
+      "WebFetch(domain:l-pswipe-test.vercel.app)",
+      "Bash(copy:*)",
+      "Bash(cp:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

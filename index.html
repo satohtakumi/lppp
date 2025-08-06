@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>縦スワイプLP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .swiper-container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .swiper-wrapper {
+            width: 100%;
+            height: 500vh;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            position: relative;
+        }
+
+        .swiper-slide {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            flex-shrink: 0;
+        }
+
+        .swiper-slide img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+
+        .cta-overlay {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        .cta-overlay img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.2s ease;
+        }
+
+        .cta-overlay:hover img {
+            transform: scale(1.05);
+        }
+
+        .pagination {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pagination-bullet {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .pagination-bullet.active {
+            background: white;
+            width: 8px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .pagination {
+                right: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="swiper-container">
+        <div class="swiper-wrapper">
+            <div class="swiper-slide active">
+                <img src="img/スワイプ型LPFV1.png" alt="Page 1">
+            </div>
+            <div class="swiper-slide">
+                <img src="img/スワイプ型LPFV2.png" alt="Page 2">
+            </div>
+            <div class="swiper-slide">
+                <img src="img/スワイプ型LPFV3.png" alt="Page 3">
+            </div>
+            <div class="swiper-slide">
+                <img src="img/スワイプ型LPFV4.png" alt="Page 4">
+            </div>
+            <div class="swiper-slide">
+                <img src="img/スワイプ型LPFV5.png" alt="Page 5">
+            </div>
+        </div>
+        
+        <div class="pagination">
+            <div class="pagination-bullet active"></div>
+            <div class="pagination-bullet"></div>
+            <div class="pagination-bullet"></div>
+            <div class="pagination-bullet"></div>
+            <div class="pagination-bullet"></div>
+        </div>
+    </div>
+    
+    <div class="cta-overlay" onclick="handleCTA()">
+        <img src="img/スワイプCTA.png" alt="CTA Button">
+    </div>
+
+    <script>
+        class VerticalSwiper {
+            constructor() {
+                this.currentSlide = 0;
+                this.totalSlides = 5;
+                this.isTransitioning = false;
+                this.touchStartY = 0;
+                this.touchEndY = 0;
+                this.currentY = 0;
+                this.isDragging = false;
+                this.minSwipeDistance = 30;
+                this.swipeThreshold = 0.3;
+                
+                this.wrapper = document.querySelector('.swiper-wrapper');
+                this.slides = document.querySelectorAll('.swiper-slide');
+                this.bullets = document.querySelectorAll('.pagination-bullet');
+                
+                this.init();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.updateSlides();
+            }
+            
+            bindEvents() {
+                // Touch events
+                document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+                document.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+                document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
+                
+                // Mouse events
+                document.addEventListener('mousedown', this.handleMouseStart.bind(this));
+                document.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                document.addEventListener('mouseup', this.handleMouseEnd.bind(this));
+                
+                // Wheel event
+                document.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
+                
+                // Keyboard events
+                document.addEventListener('keydown', this.handleKeyDown.bind(this));
+                
+                // Pagination clicks
+                this.bullets.forEach((bullet, index) => {
+                    bullet.addEventListener('click', () => this.goToSlide(index));
+                });
+            }
+            
+            handleTouchStart(e) {
+                if (this.isTransitioning) return;
+                e.preventDefault();
+                this.isDragging = true;
+                this.touchStartY = e.touches[0].clientY;
+                this.currentY = this.touchStartY;
+                
+                // Remove transition for smooth dragging
+                this.wrapper.style.transition = 'none';
+            }
+            
+            handleTouchMove(e) {
+                if (this.isTransitioning || !this.isDragging) return;
+                e.preventDefault();
+                
+                this.currentY = e.touches[0].clientY;
+                const deltaY = this.currentY - this.touchStartY;
+                
+                // Calculate the offset from current position
+                const currentTranslate = -this.currentSlide * window.innerHeight;
+                const newTranslate = currentTranslate + deltaY;
+                
+                // Add resistance at boundaries
+                let resistedTranslate = newTranslate;
+                if (this.currentSlide === 0 && deltaY > 0) {
+                    resistedTranslate = currentTranslate + deltaY * 0.3;
+                } else if (this.currentSlide === this.totalSlides - 1 && deltaY < 0) {
+                    resistedTranslate = currentTranslate + deltaY * 0.3;
+                }
+                
+                this.wrapper.style.transform = `translateY(${resistedTranslate}px)`;
+            }
+            
+            handleTouchEnd(e) {
+                if (this.isTransitioning || !this.isDragging) return;
+                e.preventDefault();
+                
+                this.isDragging = false;
+                this.touchEndY = this.currentY;
+                
+                // Restore transition
+                this.wrapper.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                
+                this.handleSwipe();
+            }
+            
+            handleMouseStart(e) {
+                if (this.isTransitioning) return;
+                this.touchStartY = e.clientY;
+            }
+            
+            handleMouseMove(e) {
+                if (this.isTransitioning || !this.touchStartY) return;
+                e.preventDefault();
+            }
+            
+            handleMouseEnd(e) {
+                if (this.isTransitioning || !this.touchStartY) return;
+                this.touchEndY = e.clientY;
+                this.handleSwipe();
+                this.touchStartY = 0;
+            }
+            
+            handleWheel(e) {
+                if (this.isTransitioning) return;
+                e.preventDefault();
+                
+                if (e.deltaY > 0) {
+                    this.nextSlide();
+                } else {
+                    this.prevSlide();
+                }
+            }
+            
+            handleKeyDown(e) {
+                if (this.isTransitioning) return;
+                
+                switch(e.key) {
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        this.prevSlide();
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        this.nextSlide();
+                        break;
+                }
+            }
+            
+            handleSwipe() {
+                const swipeDistance = this.touchStartY - this.touchEndY;
+                const swipeDistanceAbs = Math.abs(swipeDistance);
+                const screenHeight = window.innerHeight;
+                
+                // Check if swipe distance or velocity is enough to trigger slide change
+                const shouldChangeSlide = swipeDistanceAbs > this.minSwipeDistance || 
+                                         (swipeDistanceAbs / screenHeight) > this.swipeThreshold;
+                
+                if (shouldChangeSlide) {
+                    if (swipeDistance > 0) {
+                        this.nextSlide();
+                    } else {
+                        this.prevSlide();
+                    }
+                } else {
+                    // Snap back to current slide
+                    this.goToSlide(this.currentSlide, false);
+                }
+            }
+            
+            nextSlide() {
+                if (this.currentSlide < this.totalSlides - 1) {
+                    this.goToSlide(this.currentSlide + 1);
+                }
+            }
+            
+            prevSlide() {
+                if (this.currentSlide > 0) {
+                    this.goToSlide(this.currentSlide - 1);
+                }
+            }
+            
+            goToSlide(index, shouldUpdateIndex = true) {
+                if (index < 0 || index >= this.totalSlides || this.isTransitioning) {
+                    return;
+                }
+                
+                this.isTransitioning = true;
+                if (shouldUpdateIndex) {
+                    this.currentSlide = index;
+                }
+                
+                this.updateSlides();
+                
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                }, 300);
+            }
+            
+            updateSlides() {
+                const translateY = -this.currentSlide * 100;
+                this.wrapper.style.transform = `translateY(${translateY}vh)`;
+                
+                // Update active slide
+                this.slides.forEach((slide, index) => {
+                    slide.classList.toggle('active', index === this.currentSlide);
+                });
+                
+                // Update pagination
+                this.bullets.forEach((bullet, index) => {
+                    bullet.classList.toggle('active', index === this.currentSlide);
+                });
+            }
+        }
+        
+        function handleCTA() {
+            alert('CTAがクリックされました！');
+        }
+        
+        // Initialize swiper when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new VerticalSwiper();
+        });
+    </script>
+</body>
+</html>
