@@ -23,9 +23,11 @@
 
         .swiper-container {
             width: 100%;
+            max-width: 500px;
             height: 100vh;
             position: relative;
             overflow: hidden;
+            margin: 0 auto;
         }
 
         .swiper-wrapper {
@@ -53,15 +55,17 @@
             width: 100%;
             max-width: 100%;
             height: auto;
-            max-height: 100vh;
+            max-height: calc(100vh - 80px);
             object-fit: contain;
         }
 
         .cta-overlay {
             position: fixed;
             bottom: 0;
-            left: 0;
-            right: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 500px;
             z-index: 100;
             cursor: pointer;
         }
@@ -351,9 +355,39 @@
             alert('CTAがクリックされました！');
         }
         
+        // Adjust image height to prevent overlap with CTA
+        function adjustImageHeight() {
+            const ctaButton = document.querySelector('.cta-overlay img');
+            const slideImages = document.querySelectorAll('.swiper-slide img');
+            
+            if (ctaButton && slideImages.length > 0) {
+                // Wait for CTA image to load and get actual height
+                const adjustHeight = () => {
+                    const ctaHeight = ctaButton.offsetHeight;
+                    const adjustedMaxHeight = `calc(100vh - ${ctaHeight + 10}px)`;
+                    
+                    slideImages.forEach(img => {
+                        img.style.maxHeight = adjustedMaxHeight;
+                    });
+                };
+                
+                if (ctaButton.complete) {
+                    adjustHeight();
+                } else {
+                    ctaButton.addEventListener('load', adjustHeight);
+                }
+            }
+        }
+        
         // Initialize swiper when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             new VerticalSwiper();
+            
+            // Adjust image heights after everything loads
+            setTimeout(adjustImageHeight, 100);
+            
+            // Re-adjust on window resize
+            window.addEventListener('resize', adjustImageHeight);
         });
     </script>
 </body>
